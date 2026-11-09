@@ -1,0 +1,25 @@
+{
+  "name": "W8out - Full Body Dumbbell Workout",
+  "short_name": "W8out",
+  "description": "Animated full body dumbbell workout guide. Keep core engaged for stability. Consistency creates results.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffd60a",
+  "theme_color": "#ffd60a",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#ffd60a" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="icons/icon.svg" />
+    <title>W8out</title>
+    <style>
+      :root { font-family: system-ui, -apple-system, sans-serif; }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        background: #ffd60a;
+        color: #111;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+      }
+      .card {
+        width: 100%;
+        max-width: 420px;
+        background: #fff;
+        border: 3px solid #111;
+        border-radius: 20px;
+        padding: 28px 24px;
+        text-align: center;
+        box-shadow: 8px 8px 0 #111;
+      }
+      .logo {
+        font-size: 34px;
+        font-weight: 900;
+        letter-spacing: 1px;
+        display: inline-block;
+        background: #ffd60a;
+        border: 3px solid #111;
+        border-radius: 12px;
+        padding: 2px 14px;
+        box-shadow: 4px 4px 0 #111;
+        margin-bottom: 14px;
+      }
+      h1 { font-size: 13px; letter-spacing: 3px; text-transform: uppercase; color: #555; margin-bottom: 12px; }
+      .exercise-name { font-size: 24px; font-weight: 800; margin: 8px 0 2px; }
+      .muscle-group {
+        font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+        margin-bottom: 8px; opacity: .8;
+      }
+      svg { width: 100%; max-width: 280px; height: auto; display: block; margin: 0 auto; }
+      .floor { stroke: #bbb; stroke-width: 3; stroke-linecap: round; }
+      .body-line { stroke-width: 6; stroke-linecap: round; fill: none; }
+      .head { fill: none; stroke-width: 6; }
+      .db { stroke-width: 5; stroke-linecap: round; }
+      .db-cap { stroke-width: 8; stroke-linecap: butt; }
+      .controls { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 14px; }
+      button {
+        background: #ffd60a; color: #111; border: 3px solid #111;
+        border-radius: 10px; padding: 8px 16px; font-size: 14px; font-weight: 700; cursor: pointer;
+        box-shadow: 3px 3px 0 #111;
+      }
+      button:active { transform: translate(3px, 3px); box-shadow: none; }
+      #installBtn { display: none; margin: 12px auto 0; }
+      .dots { display: flex; gap: 6px; justify-content: center; margin-top: 14px; flex-wrap: wrap; }
+      .dot {
+        width: 10px; height: 10px; border-radius: 50%;
+        background: #ddd; border: 1.5px solid #111; cursor: pointer;
+        transition: background .3s, transform .3s;
+      }
+      .dot.active { transform: scale(1.35); }
+      .tip { font-size: 12px; color: #666; margin-top: 14px; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="logo">W8OUT</div>
+      <h1>Full Body Dumbbell Workout</h1>
+      <div class="exercise-name" id="name">Goblet Squat</div>
+      <div class="muscle-group" id="group">Legs</div>
+      <svg viewBox="0 0 200 200" id="fig">
+        <line class="floor" x1="25" y1="178" x2="175" y2="178" />
+        <g id="g">
+          <line id="torso" class="body-line" />
+          <line id="thighL" class="body-line" />
+          <line id="shinL" class="body-line" />
+          <line id="thighR" class="body-line" />
+          <line id="shinR" class="body-line" />
+          <line id="uarmL" class="body-line" />
+          <line id="farmL" class="body-line" />
+          <line id="uarmR" class="body-line" />
+          <line id="farmR" class="body-line" />
+          <circle id="head" class="head" r="11" />
+          <g id="dbwrap">
+            <line id="dbbar" class="db" />
+            <line id="dbc1" class="db-cap" />
+            <line id="dbc2" class="db-cap" />
+          </g>
+        </g>
+      </svg>
+      <div class="controls">
+        <button id="prev">&#8592;</button>
+        <button id="next">&#8594;</button>
+      </div>
+      <button id="installBtn">Install W8out</button>
+      <div class="dots" id="dots"></div>
+      <div class="tip">Keep core engaged for stability. Consistency creates results.</div>
+    </div>
+    <script>
+      const L = (a, b, t) => a + (b - a) * t;
+      const P = (A, B, t) => ({ x: L(A.x, B.x, t), y: L(A.y, B.y, t) });
+
+      const EX = [
+        {
+          name: "Goblet Squat", group: "Legs", color: "#e8a200", perRep: 1.9,
+          A: { hip:{x:100,y:115}, sh:{x:100,y:75}, head:{x:100,y:56},
+               kL:{x:91,y:145}, fL:{x:88,y:175}, kR:{x:109,y:145}, fR:{x:112,y:175},
+               eL:{x:88,y:95}, hL:{x:96,y:107}, eR:{x:112,y:95}, hR:{x:104,y:107} },
+          B: { hip:{x:100,y:152}, sh:{x:103,y:112}, head:{x:105,y:93},
+               kL:{x:116,y:154}, fL:{x:88,y:175}, kR:{x:113,y:162}, fR:{x:112,y:175},
+               eL:{x:96,y:112}, hL:{x:106,y:120}, eR:{x:112,y:114}, hR:{x:106,y:120} },
+          dbs: p => {
+            const cx = (p.hL.x + p.hR.x) / 2, cy = (p.hL.y + p.hR.y) / 2;
+            return [[{ x: cx, y: cy - 15 }, { x: cx, y: cy + 15 }]];
+          }
+        },
+        {
+          name: "Lunges", group: "Legs", color: "#e8a200", perRep: 2.0,
+          A: { hip:{x:100,y:115}, sh:{x:100,y:75}, head:{x:100,y:56},
+               kL:{x:120,y:140}, fL:{x:135,y:175}, kR:{x:83,y:143}, fR:{x:66,y:173},
+               eL:{x:88,y:100}, hL:{x:86,y:130}, eR:{x:112,y:100}, hR:{x:114,y:130} },
+          B: { hip:{x:100,y:141}, sh:{x:100,y:101}, head:{x:100,y:82},
+               kL:{x:122,y:145}, fL:{x:135,y:175}, kR:{x:84,y:155}, fR:{x:66,y:173},
+               eL:{x:88,y:124}, hL:{x:86,y:152}, eR:{x:112,y:124}, hR:{x:114,y:152} },
+          dbs: p => [[p.hL], [p.hR]]
+        },
+        {
+          name: "Standing Overhead Press", group: "Shoulders", color: "#d63426", perRep: 1.9,
+          A: { hip:{x:100,y:115}, sh:{x:100,y:75}, head:{x:100,y:56},
+               kL:{x:91,y:145}, fL:{x:88,y:175}, kR:{x:109,y:145}, fR:{x:112,y:175},
+               eL:{x:84,y:95}, hL:{x:88,y:78}, eR:{x:116,y:95}, hR:{x:112,y:78} },
+          B: { hip:{x:100,y:115}, sh:{x:100,y:75}, head:{x:100,y:56},
+               kL:{x:91,y:145}, fL:{x:88,y:175}, kR:{x:109,y:145}, fR:{x:112,y:175},
+               eL:{x:88,y:58}, hL:{x:88,y:38}, eR:{x:112,y:58}, hR:{x:112,y:38} },
+          dbs: p => [[p.hL], [p.hR]]
+        },
+        {
+          name: "Bent Over Rows", group: "Back", color: "#d63426", perRep: 1.8,
+          A: { hip:{x:100,y:115}, sh:{x:128,y:100}, head:{x:143,y:96},
+               kL:{x:94,y:146}, fL:{x:90,y:175}, kR:{x:106,y:148}, fR:{x:113,y:175},
+               eL:{x:135,y:120}, hL:{x:138,y:144}, eR:{x:139,y:116}, hR:{x:143,y:140} },
+          B: { hip:{x:100,y:115}, sh:{x:128,y:100}, head:{x:143,y:96},
+               kL:{x:94,y:146}, fL:{x:90,y:175}, kR:{x:106,y:148}, fR:{x:113,y:175},
+               eL:{x:124,y:118}, hL:{x:127,y:114}, eR:{x:130,y:114}, hR:{x:134,y:110} },
+          dbs: p => [[p.hL], [p.hR]]
+        },
+        {
+          name: "Hammer Curls", group: "Arms", color: "#d63426", perRep: 1.7,
+          A: { hip:{x:100,y:115}, sh:{x:100,y:75}, head:{x:100,y:56},
+               kL:{x:91,y:145}, fL:{x:88,y:175}, kR:{x:109,y:145}, fR:{x:112,y:175},
+               eL:{x:84,y:100}, hL:{x:83,y:130}, eR:{x:116,y:100}, hR:{x:117,y:130} },
+          B: { hip:{x:100,y:115}, sh:{x:100,y:75}, head:{x:100,y:56},
+               kL:{x:91,y:145}, fL:{x:88,y:175}, kR:{x:109,y:145}, fR:{x:112,y:175},
+               eL:{x:84,y:100}, hL:{x:88,y:79}, eR:{x:116,y:100}, hR:{x:112,y:79} },
+          dbs: p => [[p.hL], [p.hR]]
+        },
+        {
+          name: "Floor Press", group: "Chest", color: "#1878d4", perRep: 1.8,
+          A: { hip:{x:100,y:160}, sh:{x:135,y:160}, head:{x:152,y:160},
+               kL:{x:90,y:134}, fL:{x:86,y:160}, kR:{x:108,y:134}, fR:{x:104,y:160},
+               eL:{x:124,y:148}, hL:{x:124,y:130}, eR:{x:140,y:148}, hR:{x:140,y:130} },
+          B: { hip:{x:100,y:160}, sh:{x:135,y:160}, head:{x:152,y:160},
+               kL:{x:90,y:134}, fL:{x:86,y:160}, kR:{x:108,y:134}, fR:{x:104,y:160},
+               eL:{x:124,y:134}, hL:{x:124,y:112}, eR:{x:140,y:134}, hR:{x:140,y:112} },
+          dbs: p => [[p.hL], [p.hR]]
+        },
+        {
+          name: "Romanian Deadlifts", group: "Hamstrings", color: "#1878d4", perRep: 2.0,
+          A: { hip:{x:100,y:115}, sh:{x:100,y:75}, head:{x:100,y:56},
+               kL:{x:91,y:145}, fL:{x:88,y:175}, kR:{x:109,y:145}, fR:{x:112,y:175},
+               eL:{x:88,y:102}, hL:{x:86,y:138}, eR:{x:112,y:102}, hR:{x:114,y:138} },
+          B: { hip:{x:100,y:118}, sh:{x:127,y:106}, head:{x:141,y:102},
+               kL:{x:95,y:147}, fL:{x:90,y:175}, kR:{x:107,y:148}, fR:{x:113,y:175},
+               eL:{x:132,y:128}, hL:{x:135,y:158}, eR:{x:136,y:124}, hR:{x:139,y:154} },
+          dbs: p => [[p.hL], [p.hR]]
+        },
+        {
+          name: "Overhead Tricep Extensions", group: "Triceps", color: "#1878d4", perRep: 1.8,
+          A: { hip:{x:100,y:115}, sh:{x:100,y:75}, head:{x:100,y:56},
+               kL:{x:91,y:145}, fL:{x:88,y:175}, kR:{x:109,y:145}, fR:{x:112,y:175},
+               eL:{x:92,y:68}, hL:{x:95,y:46}, eR:{x:108,y:68}, hR:{x:105,y:46} },
+          B: { hip:{x:100,y:115}, sh:{x:100,y:75}, head:{x:100,y:56},
+               kL:{x:91,y:145}, fL:{x:88,y:175}, kR:{x:109,y:145}, fR:{x:112,y:175},
+               eL:{x:92,y:68}, hL:{x:96,y:74}, eR:{x:108,y:68}, hR:{x:104,y:74} },
+          dbs: p => {
+            const cx = (p.hL.x + p.hR.x) / 2, cy = (p.hL.y + p.hR.y) / 2;
+            return [[{ x: cx, y: cy - 15 }, { x: cx, y: cy + 15 }]];
+          }
+        }
+      ];
+
+      const $ = id => document.getElementById(id);
+      const els = {
+        torso: $("torso"), head: $("head"),
+        thighL: $("thighL"), shinL: $("shinL"), thighR: $("thighR"), shinR: $("shinR"),
+        uarmL: $("uarmL"), farmL: $("farmL"), uarmR: $("uarmR"), farmR: $("farmR"),
+        dbbar: $("dbbar"), dbc1: $("dbc1"), dbc2: $("dbc2"),
+        name: $("name"), group: $("group")
+      };
+      const setLine = (el, a, b) => {
+        el.setAttribute("x1", a.x); el.setAttribute("y1", a.y);
+        el.setAttribute("x2", b.x); el.setAttribute("y2", b.y);
+      };
+      const setCircle = (el, c) => {
+        el.setAttribute("cx", c.x); el.setAttribute("cy", c.y);
+      };
+
+      let idx = 0, animStart = performance.now();
+
+      function interp(ex, t) {
+        const o = {};
+        for (const k in ex.A) o[k] = P(ex.A[k], ex.B[k], t);
+        return o;
+      }
+
+      function draw() {
+        const ex = EX[idx];
+        const now = performance.now();
+        const phase = (((now - animStart) / 1000) % ex.perRep) / ex.perRep;
+        const t = phase < 0.5
+          ? 0.5 - 0.5 * Math.cos(Math.PI * (phase * 2))
+          : 0.5 + 0.5 * Math.cos(Math.PI * ((phase - 0.5) * 2));
+        const p = interp(ex, t);
+
+        els.name.textContent = ex.name;
+        els.name.style.color = ex.color;
+        els.group.textContent = ex.group;
+        els.group.style.color = ex.color;
+        document.querySelectorAll(".body-line, .head").forEach(n => n.setAttribute("stroke", ex.color));
+        document.querySelectorAll(".db, .db-cap").forEach(n => n.setAttribute("stroke", "#111"));
+
+        setLine(els.torso, p.hip, p.sh);
+        setCircle(els.head, p.head);
+        setLine(els.thighL, p.hip, p.kL); setLine(els.shinL, p.kL, p.fL);
+        setLine(els.thighR, p.hip, p.kR); setLine(els.shinR, p.kR, p.fR);
+        setLine(els.uarmL, p.sh, p.eL); setLine(els.farmL, p.eL, p.hL);
+        setLine(els.uarmR, p.sh, p.eR); setLine(els.farmR, p.eR, p.hR);
+
+        const sets = ex.dbs(p);
+        const s = sets[0];
+        let a = s[0], b = s.length > 1 ? s[1] : null;
+        if (!b) {
+          const elbow = (a === p.hL) ? p.eL : p.eR;
+          let dx = a.x - elbow.x, dy = a.y - elbow.y;
+          const len = Math.hypot(dx, dy) || 1;
+          dx /= len; dy /= len;
+          b = { x: a.x - dy * 14, y: a.y + dx * 14 };
+          a = { x: a.x + dy * 14, y: a.y - dx * 14 };
+        }
+        setLine(els.dbbar, a, b);
+        const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+        const dx = (b.x - a.x), dy = (b.y - a.y);
+        const len = Math.hypot(dx, dy) || 1;
+        const ux = dx / len, uy = dy / len;
+        const capOff = 9, capHalf = 8;
+        setLine(els.dbc1, { x: mx + ux * capOff - uy * capHalf, y: my + uy * capOff + ux * capHalf },
+                          { x: mx + ux * capOff + uy * capHalf, y: my + uy * capOff - ux * capHalf });
+        setLine(els.dbc2, { x: mx - ux * capOff - uy * capHalf, y: my - uy * capOff + ux * capHalf },
+                          { x: mx - ux * capOff + uy * capHalf, y: my - uy * capOff - ux * capHalf });
+
+        requestAnimationFrame(draw);
+      }
+
+      function updateDots() {
+        document.querySelectorAll(".dot").forEach((d, i) => {
+          d.style.background = i === idx ? "#111" : "#ddd";
+          d.classList.toggle("active", i === idx);
+        });
+      }
+
+      const dots = $("dots");
+      EX.forEach((ex, i) => {
+        const d = document.createElement("div");
+        d.className = "dot";
+        d.title = ex.name;
+        d.addEventListener("click", () => {
+          idx = i;
+          updateDots();
+        });
+        dots.appendChild(d);
+      });
+      updateDots();
+
+      $("prev").addEventListener("click", () => {
+        idx = (idx - 1 + EX.length) % EX.length;
+        animStart = performance.now();
+        updateDots();
+      });
+      $("next").addEventListener("click", () => {
+        idx = (idx + 1) % EX.length;
+        animStart = performance.now();
+        updateDots();
+      });
+
+      // PWA: install prompt
+      let deferredPrompt = null;
+      window.addEventListener("beforeinstallprompt", e => {
+        e.preventDefault();
+        deferredPrompt = e;
+        $("installBtn").style.display = "inline-block";
+      });
+      $("installBtn").addEventListener("click", async () => {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        await deferredPrompt.userChoice;
+        deferredPrompt = null;
+        $("installBtn").style.display = "none";
+      });
+
+      // PWA: service worker
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("sw.js").catch(() => {});
+      }
+
+      requestAnimationFrame(draw);
+    </script>
+  </body>
+</html>
